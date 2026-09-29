@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Attendance App</title>
+  
+  <!-- Web App Manifest embedded inline for Home Screen installation -->
+  <link rel="manifest" href='data:application/manifest+json,{
+    "name": "Attendance Tracker",
+    "short_name": "Attendance",
+    "start_url": "./",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#2563eb",
+    "icons": [
+      {
+        "src": "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📋</text></svg>",
+        "sizes": "192x192 512x512",
+        "type": "image/svg+xml"
+      }
+    ]
+  }'>
+
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --success: #16a34a;
+      --success-bg: #dcfce7;
+      --danger: #dc2626;
+      --danger-bg: #fee2e2;
+      --warning: #d97706;
+      --warning-bg: #fef3c7;
+      --radius: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      padding-bottom: 70px;
+      user-select: none;
+    }
+
+    /* Header */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--card-bg);
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    header h1 {
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .status-indicator {
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+      background: var(--success-bg);
+      color: var(--success);
+    }
+
+    .status-indicator.offline {
+      background: var(--warning-bg);
+      color: var(--warning);
+    }
+
+    .icon-btn {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    /* Bottom Navigation */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: var(--card-bg);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      z-index: 20;
+    }
+
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      border: none;
+      background: none;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+
+    .nav-item .icon {
+      font-size: 1.2rem;
+      margin-bottom: 2px;
+    }
+
+    .nav-item.active {
+      color: var(--primary);
+      font-weight: bold;
+    }
+
+    /* Container & Screens */
+    .container {
+      padding: 12px;
+    }
+
+    .screen {
+      display: none;
+    }
+
+    .screen.active {
+      display: block;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      padding: 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .stat-card .title {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .stat-card .value {
+      font-size: 1.4rem;
+      font-weight: bold;
+      color: var(--primary);
+      margin-top: 2px;
+    }
+
+    /* Controls & Buttons */
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 14px;
+      background: var(--card-bg);
+      padding: 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+
+    .control-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.9rem;
+      background: var(--bg);
+    }
+
+    .btn {
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: none;
+      background: var(--primary);
+      color: white;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      width: 100%;
+      text-align: center;
+    }
+
+    .btn-success { background: var(--success); }
+    .btn-danger { background: var(--danger); }
+    .btn-secondary { background: #64748b; }
+
+    /* Student Cards */
+    .student-card {
+      background: var(--card-bg);
+      padding: 12px 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .student-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .student-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .student-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .status-toggle {
+      min-width: 90px;
+      padding: 8px 12px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.8rem;
+      border: none;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    .status-toggle.present { background: var(--success-bg); color: var(--success); }
+    .status-toggle.absent { background: var(--danger-bg); color: var(--danger); }
+    .status-toggle.unmarked { background: #f1f5f9; color: var(--text-muted); }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 0.75rem;
+      font-weight: bold;
+    }
+    .badge-success { background: var(--success-bg); color: var(--success); }
+    .badge-warning { background: var(--warning-bg); color: var(--warning); }
+    .badge-danger { background: var(--danger-bg); color: var(--danger); }
+
+    /* Register Table */
+    .register-wrapper {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      overflow-x: auto;
+      max-width: 100%;
+    }
+
+    .register-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+
+    .register-table th, .register-table td {
+      padding: 8px 6px;
+      text-align: center;
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .register-table th.sticky-col, .register-table td.sticky-col {
+      position: sticky;
+      left: 0;
+      background: var(--card-bg);
+      z-index: 2;
+      text-align: left;
+      box-shadow: 2px 0 4px rgba(0,0,0,0.05);
+      padding-left: 10px;
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      align-items: flex-end;
+      z-index: 100;
+    }
+
+    .modal-content {
+      background: var(--card-bg);
+      padding: 20px;
+      border-radius: 16px 16px 0 0;
+      width: 100%;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- App Header -->
+  <header>
+    <h1>📋 Tracker</h1>
+    <div class="header-actions">
+      <span id="network-status" class="status-indicator">Online</span>
+      <button class="icon-btn" onclick="exportData('csv')">CSV</button>
+      <button class="icon-btn" onclick="exportData('xls')">XLS</button>
+    </div>
+  </header>
+
+  <!-- Content Screens -->
+  <div class="container">
+    
+    <!-- DAILY MARKING SCREEN -->
+    <div id="screen-daily" class="screen active">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="title">Total</div>
+          <div class="value" id="stat-total">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="title">Rate</div>
+          <div class="value" id="stat-rate">0%</div>
+        </div>
+        <div class="stat-card">
+          <div class="title">Present</div>
+          <div class="value" id="stat-present" style="color:var(--success);">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="title">Absent</div>
+          <div class="value" id="stat-absent" style="color:var(--danger);">0</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <input type="date" id="attendance-date" onchange="loadDailyAttendance()">
+        <input type="text" id="search-daily" placeholder="🔎 Search student..." oninput="renderDailyList()">
+        <div class="control-row">
+          <button class="btn btn-success" onclick="markAll('Present')">Mark All P</button>
+          <button class="btn btn-danger" onclick="markAll('Absent')">Mark All A</button>
+        </div>
+      </div>
+
+      <div id="daily-list"></div>
+    </div>
+
+    <!-- REGISTER SCREEN -->
+    <div id="screen-register" class="screen">
+      <div class="controls">
+        <input type="month" id="register-month" onchange="renderRegisterTable()">
+        <input type="text" id="search-register" placeholder="🔎 Filter student..." oninput="renderRegisterTable()">
+      </div>
+
+      <div class="register-wrapper">
+        <table class="register-table">
+          <thead id="register-head"></thead>
+          <tbody id="register-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- MANAGE STUDENTS SCREEN -->
+    <div id="screen-students" class="screen">
+      <div class="controls">
+        <input type="text" id="search-student" placeholder="🔎 Search student..." oninput="renderStudentsList()">
+        <button class="btn" onclick="openStudentModal()">➕ Add Student</button>
+      </div>
+
+      <div id="students-list"></div>
+    </div>
+
+    <!-- LOGS SCREEN -->
+    <div id="screen-history" class="screen">
+      <div id="history-list"></div>
+    </div>
+
+  </div>
+
+  <!-- Bottom Navigation -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" onclick="switchTab('daily', this)">
+      <span class="icon">📅</span>
+      <span>Daily</span>
+    </button>
+    <button class="nav-item" onclick="switchTab('register', this)">
+      <span class="icon">📖</span>
+      <span>Register</span>
+    </button>
+    <button class="nav-item" onclick="switchTab('students', this)">
+      <span class="icon">👨‍🎓</span>
+      <span>Students</span>
+    </button>
+    <button class="nav-item" onclick="switchTab('history', this)">
+      <span class="icon">📜</span>
+      <span>Logs</span>
+    </button>
+  </nav>
+
+  <!-- Modal Sheet -->
+  <div class="modal" id="studentModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">Add Student</h3>
+        <button class="icon-btn" onclick="closeStudentModal()">✕</button>
+      </div>
+      <form id="studentForm" onsubmit="saveStudent(event)">
+        <input type="hidden" id="student-id">
+        <div style="margin-bottom:10px;">
+          <label style="font-size:0.8rem; color:var(--text-muted);">Roll Number</label>
+          <input type="text" id="student-roll" required>
+        </div>
+        <div style="margin-bottom:14px;">
+          <label style="font-size:0.8rem; color:var(--text-muted);">Full Name</label>
+          <input type="text" id="student-name" required>
+        </div>
+        <button type="submit" class="btn">Save Student</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    /* Service Worker Registration for Offline Caching */
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        const swCode = `
+          const CACHE_NAME = 'attendance-app-v1';
+          self.addEventListener('install', (e) => {
+            e.waitUntil(
+              caches.open(CACHE_NAME).then((cache) => {
+                return cache.addAll(['./', location.href]);
+              })
+            );
+          });
+          self.addEventListener('fetch', (e) => {
+            e.respondWith(
+              caches.match(e.request).then((res) => res || fetch(e.request))
+            );
+          });
+        `;
+        const blob = new Blob([swCode], { type: 'application/javascript' });
+        const swUrl = URL.createObjectURL(blob);
+        navigator.serviceWorker.register(swUrl).catch(() => {});
+      });
+    }
+
+    /* Network Connection Status Listener */
+    function updateOnlineStatus() {
+      const statusEl = document.getElementById('network-status');
+      if (navigator.onLine) {
+        statusEl.innerText = 'Online';
+        statusEl.className = 'status-indicator';
+      } else {
+        statusEl.innerText = 'Offline';
+        statusEl.className = 'status-indicator offline';
+      }
+    }
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+
+    /* Local Data Storage State */
+    let students = JSON.parse(localStorage.getItem('app_students')) || [
+      { id: '1', roll: '101', name: 'Alice Smith' },
+      { id: '2', roll: '102', name: 'Bob Johnson' },
+      { id: '3', roll: '103', name: 'Charlie Brown' }
+    ];
+
+    let attendance = JSON.parse(localStorage.getItem('app_attendance')) || {};
+
+    document.addEventListener("DOMContentLoaded", () => {
+      updateOnlineStatus();
+      const today = new Date();
+      document.getElementById('attendance-date').valueAsDate = today;
+      document.getElementById('register-month').value = today.toISOString().slice(0, 7);
+      
+      saveData();
+      loadDailyAttendance();
+    });
+
+    function saveData() {
+      localStorage.setItem('app_students', JSON.stringify(students));
+      localStorage.setItem('app_attendance', JSON.stringify(attendance));
+    }
+
+    function switchTab(tabId, btn) {
+      document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      
+      btn.classList.add('active');
+      document.getElementById(`screen-${tabId}`).classList.add('active');
+
+      if (tabId === 'daily') loadDailyAttendance();
+      if (tabId === 'register') renderRegisterTable();
+      if (tabId === 'students') renderStudentsList();
+      if (tabId === 'history') renderHistoryList();
+    }
+
+    /* Daily Attendance Logic */
+    function loadDailyAttendance() {
+      renderDailyList();
+      updateStats();
+    }
+
+    function renderDailyList() {
+      const date = document.getElementById('attendance-date').value;
+      const search = document.getElementById('search-daily').value.toLowerCase();
+      const container = document.getElementById('daily-list');
+      container.innerHTML = '';
+
+      if (!attendance[date]) attendance[date] = {};
+
+      const filtered = students.filter(s => 
+        s.name.toLowerCase().includes(search) || s.roll.toLowerCase().includes(search)
+      );
+
+      filtered.forEach(student => {
+        const status = attendance[date][student.id] || 'Unmarked';
+        const stats = getStudentStats(student.id);
+
+        const card = document.createElement('div');
+        card.className = 'student-card';
+        card.innerHTML = `
+          <div class="student-info">
+            <span class="student-name">${student.name}</span>
+            <span class="student-sub">Roll: ${student.roll} • Overall: ${stats.percentage}%</span>
+          </div>
+          <button class="status-toggle ${status.toLowerCase()}" onclick="toggleStatus('${date}', '${student.id}')">
+            ${status === 'Present' ? 'P' : status === 'Absent' ? 'A' : '-'}
+          </button>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function toggleStatus(date, studentId) {
+      if (!attendance[date]) attendance[date] = {};
+      const curr = attendance[date][studentId];
+      if (curr === 'Present') attendance[date][studentId] = 'Absent';
+      else if (curr === 'Absent') attendance[date][studentId] = 'Present';
+      else attendance[date][studentId] = 'Present';
+
+      saveData();
+      loadDailyAttendance();
+    }
+
+    function markAll(status) {
+      const date = document.getElementById('attendance-date').value;
+      if (!date) return;
+      if (!attendance[date]) attendance[date] = {};
+
+      students.forEach(s => { attendance[date][s.id] = status; });
+      saveData();
+      loadDailyAttendance();
+    }
+
+    function updateStats() {
+      const date = document.getElementById('attendance-date').value;
+      const dayData = attendance[date] || {};
+      let p = 0, a = 0;
+
+      students.forEach(s => {
+        if (dayData[s.id] === 'Present') p++;
+        if (dayData[s.id] === 'Absent') a++;
+      });
+
+      const total = students.length;
+      const marked = p + a;
+      const rate = marked > 0 ? Math.round((p / marked) * 100) : 0;
+
+      document.getElementById('stat-total').innerText = total;
+      document.getElementById('stat-present').innerText = p;
+      document.getElementById('stat-absent').innerText = a;
+      document.getElementById('stat-rate').innerText = `${rate}%`;
+    }
+
+    /* Monthly Register Logic */
+    function renderRegisterTable() {
+      const monthVal = document.getElementById('register-month').value;
+      const search = document.getElementById('search-register').value.toLowerCase();
+      if (!monthVal) return;
+
+      const [year, month] = monthVal.split('-').map(Number);
+      const days = new Date(year, month, 0).getDate();
+
+      const head = document.getElementById('register-head');
+      const body = document.getElementById('register-body');
+
+      let hRow = `<tr><th class="sticky-col">Student</th>`;
+      for (let d = 1; d <= days; d++) hRow += `<th>${d}</th>`;
+      hRow += `<th>P</th><th>A</th></tr>`;
+      head.innerHTML = hRow;
+
+      const filtered = students.filter(s => s.name.toLowerCase().includes(search) || s.roll.toLowerCase().includes(search));
+      body.innerHTML = '';
+
+      filtered.forEach(student => {
+        let p = 0, a = 0;
+        let bRow = `<tr><td class="sticky-col"><strong>${student.roll}</strong> ${student.name}</td>`;
+
+        for (let d = 1; d <= days; d++) {
+          const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+          const st = (attendance[dateStr] || {})[student.id];
+
+          if (st === 'Present') { bRow += `<td style="color:var(--success); font-weight:bold;">P</td>`; p++; }
+          else if (st === 'Absent') { bRow += `<td style="color:var(--danger); font-weight:bold;">A</td>`; a++; }
+          else { bRow += `<td style="color:var(--border);">-</td>`; }
+        }
+
+        bRow += `<td style="color:var(--success);">${p}</td><td style="color:var(--danger);">${a}</td></tr>`;
+        body.innerHTML += bRow;
+      });
+    }
+
+    /* Manage Students Logic */
+    function renderStudentsList() {
+      const search = document.getElementById('search-student').value.toLowerCase();
+      const container = document.getElementById('students-list');
+      container.innerHTML = '';
+
+      const filtered = students.filter(s => s.name.toLowerCase().includes(search) || s.roll.toLowerCase().includes(search));
+
+      filtered.forEach(student => {
+        const stats = getStudentStats(student.id);
+
+        const card = document.createElement('div');
+        card.className = 'student-card';
+        card.innerHTML = `
+          <div class="student-info">
+            <span class="student-name">${student.name} (Roll: ${student.roll})</span>
+            <span class="student-sub">P: ${stats.present} | A: ${stats.absent} | ${stats.percentage}%</span>
+          </div>
+          <div style="display:flex; gap:4px;">
+            <button class="icon-btn" onclick="openStudentModal('${student.id}')">✏️</button>
+            <button class="icon-btn" onclick="deleteStudent('${student.id}')">🗑️</button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function openStudentModal(id = null) {
+      const modal = document.getElementById('studentModal');
+      document.getElementById('studentForm').reset();
+      
+      if (id) {
+        document.getElementById('modalTitle').innerText = 'Edit Student';
+        const s = students.find(item => item.id === id);
+        document.getElementById('student-id').value = s.id;
+        document.getElementById('student-roll').value = s.roll;
+        document.getElementById('student-name').value = s.name;
+      } else {
+        document.getElementById('modalTitle').innerText = 'Add Student';
+        document.getElementById('student-id').value = '';
+      }
+      modal.style.display = 'flex';
+    }
+
+    function closeStudentModal() {
+      document.getElementById('studentModal').style.display = 'none';
+    }
+
+    function saveStudent(e) {
+      e.preventDefault();
+      const id = document.getElementById('student-id').value;
+      const roll = document.getElementById('student-roll').value.trim();
+      const name = document.getElementById('student-name').value.trim();
+
+      if (id) {
+        const s = students.find(item => item.id === id);
+        s.roll = roll; s.name = name;
+      } else {
+        students.push({ id: Date.now().toString(), roll, name });
+      }
+
+      saveData();
+      closeStudentModal();
+      renderStudentsList();
+    }
+
+    function deleteStudent(id) {
+      if (confirm('Delete this student?')) {
+        students = students.filter(s => s.id !== id);
+        saveData();
+        renderStudentsList();
+      }
+    }
+
+    /* History Logs */
+    function renderHistoryList() {
+      const container = document.getElementById('history-list');
+      container.innerHTML = '';
+      const dates = Object.keys(attendance).sort().reverse();
+
+      dates.forEach(date => {
+        let p = 0, a = 0;
+        Object.values(attendance[date]).forEach(status => {
+          if (status === 'Present') p++;
+          if (status === 'Absent') a++;
+        });
+
+        if (p + a > 0) {
+          const card = document.createElement('div');
+          card.className = 'student-card';
+          card.innerHTML = `
+            <div class="student-info">
+              <span class="student-name">${date}</span>
+              <span class="student-sub">Present: ${p} • Absent: ${a}</span>
+            </div>
+            <span class="badge badge-success">${Math.round((p / (p + a)) * 100)}%</span>
+          `;
+          container.appendChild(card);
+        }
+      });
+    }
+
+    function getStudentStats(studentId) {
+      let present = 0, absent = 0;
+      Object.values(attendance).forEach(day => {
+        if (day[studentId] === 'Present') present++;
+        if (day[studentId] === 'Absent') absent++;
+      });
+      const total = present + absent;
+      const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
+      return { present, absent, total, percentage };
+    }
+
+    /* Offline Data Export */
+    function exportData(format) {
+      if (students.length === 0) return alert('No data to export.');
+      const dates = Object.keys(attendance).sort();
+      let headers = ['Roll No', 'Name', ...dates, 'Total Present', 'Total Absent', 'Attendance %'];
+
+      let rows = students.map(s => {
+        let p = 0, a = 0;
+        let dStatuses = dates.map(d => {
+          const st = (attendance[d] && attendance[d][s.id]) ? attendance[d][s.id] : '-';
+          if (st === 'Present') p++;
+          if (st === 'Absent') a++;
+          return st;
+        });
+        const total = p + a;
+        const pct = total > 0 ? `${Math.round((p / total) * 100)}%` : '0%';
+        return [s.roll, `"${s.name}"`, ...dStatuses, p, a, pct];
+      });
+
+      let content = "", type = "", ext = "";
+      if (format === 'csv') {
+        content = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        type = 'text/csv'; ext = 'csv';
+      } else {
+        content = `<table border="1"><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr>` +
+                  rows.map(r=>`<tr>${r.map(c=>`<td>${c.toString().replace(/"/g,'')}</td>`).join('')}</tr>`).join('') + `</table>`;
+        type = 'application/vnd.ms-excel'; ext = 'xls';
+      }
+
+      const blob = new Blob([content], { type: `${type};charset=utf-8;` });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `Attendance_${new Date().toISOString().split('T')[0]}.${ext}`;
+      link.click();
+    }
+  </script>
+</body>
+</html>
